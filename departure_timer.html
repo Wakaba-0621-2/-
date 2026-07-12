@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>発車タイマー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a0b0d;
+    --panel:#14171c;
+    --panel-line:#242833;
+    --amber:#1F75FF;
+    --amber-dim:#123a80;
+    --text:#e9e6df;
+    --sub:#7d8494;
+    --idle:#3a3f4b;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(ellipse at 50% -10%, #1b1e24 0%, var(--bg) 55%);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:24px 16px 60px;
+  }
+  .board{
+    width:100%;
+    max-width:420px;
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-radius:14px;
+    padding:22px 20px 26px;
+    box-shadow:0 0 0 1px rgba(255,255,255,0.02), 0 20px 40px -20px rgba(0,0,0,0.6);
+  }
+  .board-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    margin-bottom:18px;
+  }
+  .eyebrow{
+    font-family:"Space Mono",monospace;
+    font-size:11px;
+    letter-spacing:0.18em;
+    color:var(--sub);
+  }
+  .clock-now{
+    font-family:"Space Mono",monospace;
+    font-size:15px;
+    color:var(--sub);
+    letter-spacing:0.05em;
+  }
+  .elapsed-label{
+    font-size:12px;
+    color:var(--sub);
+    letter-spacing:0.1em;
+    margin-bottom:6px;
+  }
+  .elapsed-digits{
+    font-family:"Space Mono",monospace;
+    font-size:64px;
+    font-weight:700;
+    letter-spacing:0.03em;
+    color:var(--idle);
+    text-shadow:none;
+    line-height:1.1;
+    transition:color 0.4s ease, text-shadow 0.4s ease;
+    font-variant-numeric:tabular-nums;
+  }
+  .elapsed-digits.running{
+    color:var(--amber);
+    text-shadow:0 0 18px rgba(31,117,255,0.35);
+  }
+  .status-line{
+    font-size:12px;
+    color:var(--sub);
+    margin-top:4px;
+    min-height:16px;
+  }
+  .remaining-label{
+    font-size:12px;
+    color:var(--sub);
+    letter-spacing:0.1em;
+    margin-top:18px;
+    margin-bottom:4px;
+  }
+  .remaining-digits{
+    font-family:"Space Mono",monospace;
+    font-size:28px;
+    font-weight:700;
+    color:var(--sub);
+    font-variant-numeric:tabular-nums;
+  }
+  .remaining-digits.over{
+    color:#ff6b5e;
+  }
+  input[type="time"]{
+    color-scheme: dark;
+    background:transparent;
+    border:none;
+    color:var(--amber);
+    font-family:"Space Mono",monospace;
+    font-size:16px;
+    outline:none;
+  }
+  .controls{
+    margin-top:22px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .interval-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:#0f1115;
+    border:1px solid var(--panel-line);
+    border-radius:8px;
+    padding:10px 14px;
+  }
+  .interval-row label{
+    font-size:13px;
+    color:var(--sub);
+  }
+  .interval-row input{
+    width:70px;
+    background:transparent;
+    border:none;
+    color:var(--amber);
+    font-family:"Space Mono",monospace;
+    font-size:18px;
+    text-align:right;
+    outline:none;
+  }
+  .buttons{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+  button{
+    font-family:inherit;
+    font-size:14px;
+    font-weight:600;
+    border-radius:8px;
+    padding:13px 10px;
+    border:1px solid var(--panel-line);
+    background:#1b1e24;
+    color:var(--text);
+    cursor:pointer;
+    letter-spacing:0.02em;
+  }
+  button:active{ transform:translateY(1px); }
+  button:disabled{ opacity:0.35; cursor:default; }
+  #startBtn{ background:var(--amber); color:#241802; border-color:var(--amber); }
+  #resetBtn{ grid-column:1 / -1; background:transparent; color:var(--sub); }
+  .ghost{
+    background:transparent;
+    color:var(--sub);
+    border:1px dashed var(--panel-line);
+  }
+  .log-panel{
+    width:100%;
+    max-width:420px;
+    margin-top:18px;
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    border-radius:14px;
+    padding:18px 20px 20px;
+  }
+  .log-header{
+    font-size:11px;
+    letter-spacing:0.18em;
+    color:var(--sub);
+    margin-bottom:12px;
+  }
+  .log-input-row{
+    display:flex;
+    gap:8px;
+    margin-bottom:14px;
+  }
+  .log-input-row input{
+    flex:1;
+    min-width:0;
+    background:#0f1115;
+    border:1px solid var(--panel-line);
+    border-radius:8px;
+    padding:11px 12px;
+    color:var(--text);
+    font-size:14px;
+    outline:none;
+  }
+  .log-input-row input:focus{ border-color:var(--amber-dim); }
+  #logBtn{ padding:11px 14px; white-space:nowrap; flex-shrink:0; }
+  #logList{
+    list-style:none;
+    margin:0;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    gap:0;
+  }
+  #logList li{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    padding:10px 0;
+    border-top:1px solid var(--panel-line);
+    font-size:13px;
+  }
+  #logList li:first-child{ border-top:none; }
+  .log-label{ color:var(--text); }
+  .log-time{
+    font-family:"Space Mono",monospace;
+    color:var(--amber);
+    white-space:nowrap;
+  }
+  .log-empty{
+    color:var(--sub);
+    font-size:13px;
+    padding:6px 0;
+  }
+  .log-clear{
+    display:block;
+    margin:14px auto 0;
+    background:none;
+    border:none;
+    color:var(--sub);
+    font-size:12px;
+    text-decoration:underline;
+    padding:4px;
+  }
+  .note{
+    max-width:420px;
+    font-size:12px;
+    color:var(--sub);
+    line-height:1.6;
+    margin-top:18px;
+    text-align:center;
+  }
+</style>
+</head>
+<body>
+
+  <div class="board">
+    <div class="board-header">
+      <span class="eyebrow">DEPARTURE TIMER</span>
+      <span class="clock-now" id="nowClock">--:--:--</span>
+    </div>
+
+    <div class="elapsed-label">経過時間</div>
+    <div class="elapsed-digits" id="elapsedDigits">00:00</div>
+    <div class="status-line" id="statusLine">停止中</div>
+
+    <div class="remaining-label">目標まで残り</div>
+    <div class="remaining-digits" id="remainingDigits">--:--</div>
+
+    <div class="controls">
+      <div class="interval-row">
+        <label for="targetInput">目標時刻</label>
+        <input type="time" id="targetInput">
+      </div>
+      <div class="interval-row">
+        <label for="intervalInput">読み上げ間隔（分）</label>
+        <input type="number" id="intervalInput" value="5" min="0.5" step="0.5">
+      </div>
+      <div class="buttons">
+        <button id="startBtn">スタート</button>
+        <button id="stopBtn" disabled>ストップ</button>
+        <button id="resetBtn">リセット</button>
+      </div>
+      <button id="testVoiceBtn" class="ghost">🔊 音声テスト</button>
+    </div>
+  </div>
+
+  <div class="log-panel">
+    <div class="log-header">移動記録</div>
+    <div class="log-input-row">
+      <input type="text" id="logLabel" placeholder="例）自宅→駅">
+      <button id="logBtn">記録</button>
+    </div>
+    <ul id="logList"></ul>
+    <div id="logEmpty" class="log-empty">まだ記録がありません</div>
+    <button class="log-clear" id="clearLogBtn">記録をすべて消去</button>
+  </div>
+
+  <p class="note">スタートしていなくても「記録する」は押せます（経過0分として記録されます）。<br>
+  画面がロックされたりアプリが背後に回ると、音声が止まることがあります。移動中は画面を点けたままにしてください。</p>
+
+<script>
+  const nowClockEl = document.getElementById('nowClock');
+  const elapsedDigitsEl = document.getElementById('elapsedDigits');
+  const statusLineEl = document.getElementById('statusLine');
+  const remainingDigitsEl = document.getElementById('remainingDigits');
+  const targetInput = document.getElementById('targetInput');
+  const intervalInput = document.getElementById('intervalInput');
+  const startBtn = document.getElementById('startBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const testVoiceBtn = document.getElementById('testVoiceBtn');
+  const logLabelInput = document.getElementById('logLabel');
+  const logBtn = document.getElementById('logBtn');
+  const logListEl = document.getElementById('logList');
+  const logEmptyEl = document.getElementById('logEmpty');
+  const clearLogBtn = document.getElementById('clearLogBtn');
+
+  let startTime = null;
+  let accumulatedSec = 0;
+  let isRunning = false;
+  let tickHandle = null;
+  let nextAnnounceSec = null;
+  let wakeLock = null;
+  let logEntries = [];
+  let targetDateTime = null;
+
+  function pad(n){ return String(n).padStart(2,'0'); }
+
+  function formatClock(d){
+    return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  }
+
+  function formatClockHM(d){
+    return pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
+  function formatElapsed(totalSec){
+    const h = Math.floor(totalSec/3600);
+    const m = Math.floor((totalSec%3600)/60);
+    const s = totalSec%60;
+    if(h > 0){
+      return pad(h)+':'+pad(m)+':'+pad(s);
+    }
+    return pad(m)+':'+pad(s);
+  }
+
+  function computeTargetDateTime(hhmm){
+    const [h, m] = hhmm.split(':').map(Number);
+    const d = new Date();
+    d.setHours(h, m, 0, 0);
+    if(d.getTime() <= Date.now()){
+      d.setDate(d.getDate() + 1);
+    }
+    return d;
+  }
+
+  function updateRemainingDisplay(){
+    if(!targetDateTime){
+      remainingDigitsEl.textContent = '--:--';
+      remainingDigitsEl.classList.remove('over');
+      return;
+    }
+    const diffMs = targetDateTime.getTime() - Date.now();
+    const over = diffMs < 0;
+    const absSec = Math.floor(Math.abs(diffMs)/1000);
+    remainingDigitsEl.textContent = (over ? '-' : '') + formatElapsed(absSec);
+    remainingDigitsEl.classList.toggle('over', over);
+  }
+  function currentElapsedSec(){
+    let sec = accumulatedSec;
+    if(isRunning && startTime){
+      sec += Math.floor((Date.now() - startTime)/1000);
+    }
+    return sec;
+  }
+
+  function updateClockDisplay(){
+    nowClockEl.textContent = formatClock(new Date());
+  }
+
+  function updateElapsedDisplay(){
+    elapsedDigitsEl.textContent = formatElapsed(currentElapsedSec());
+  }
+
+  function speak(text){
+    if(!('speechSynthesis' in window)) return;
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'ja-JP';
+    const voices = speechSynthesis.getVoices();
+    const jaVoice = voices.find(v => v.lang && v.lang.startsWith('ja'));
+    if(jaVoice) utter.voice = jaVoice;
+    utter.rate = 1.0;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(utter);
+  }
+
+  function announceProgress(){
+    const elapsedMin = Math.round(currentElapsedSec()/60);
+    const nowStr = formatClockHM(new Date());
+    if(targetDateTime){
+      const remainingMin = Math.round((targetDateTime.getTime() - Date.now())/60000);
+      if(remainingMin >= 0){
+        speak(`今は${nowStr}、経過時間${elapsedMin}分、目標時刻まで残り${remainingMin}分です。`);
+      }else{
+        speak(`今は${nowStr}、経過時間${elapsedMin}分、目標時刻を${Math.abs(remainingMin)}分過ぎています。`);
+      }
+    }else{
+      speak(`今は${nowStr}、スタートから${elapsedMin}分経過しました。`);
+    }
+  }
+
+  function getIntervalSec(){
+    let mins = parseFloat(intervalInput.value);
+    if(isNaN(mins) || mins <= 0) mins = 5;
+    return Math.round(mins*60);
+  }
+
+  async function requestWakeLock(){
+    try{
+      if('wakeLock' in navigator){
+        wakeLock = await navigator.wakeLock.request('screen');
+      }
+    }catch(e){ /* ignore, not critical */ }
+  }
+
+  function releaseWakeLock(){
+    if(wakeLock){
+      wakeLock.release().catch(()=>{});
+      wakeLock = null;
+    }
+  }
+
+  function tick(){
+    updateClockDisplay();
+    updateElapsedDisplay();
+    updateRemainingDisplay();
+    if(isRunning){
+      const elapsed = currentElapsedSec();
+      if(nextAnnounceSec !== null && elapsed >= nextAnnounceSec){
+        announceProgress();
+        const intervalSec = getIntervalSec();
+        nextAnnounceSec += intervalSec;
+      }
+    }
+  }
+
+  function startTimer(){
+    if(!targetInput.value){
+      statusLineEl.textContent = '目標時刻を入力してください';
+      targetInput.focus();
+      return;
+    }
+    targetDateTime = computeTargetDateTime(targetInput.value);
+    accumulatedSec = 0;
+    startTime = Date.now();
+    isRunning = true;
+    nextAnnounceSec = getIntervalSec();
+    elapsedDigitsEl.classList.add('running');
+    statusLineEl.textContent = `計測中（${(getIntervalSec()/60)}分ごとに音声）`;
+    startBtn.disabled = true;
+    stopBtn.disabled = false;
+    stopBtn.textContent = 'ストップ';
+    intervalInput.disabled = true;
+    targetInput.disabled = true;
+    requestWakeLock();
+    speak('スタートしました。');
+  }
+
+  function pauseTimer(){
+    if(isRunning && startTime){
+      accumulatedSec += Math.floor((Date.now() - startTime)/1000);
+    }
+    isRunning = false;
+    startTime = null;
+    elapsedDigitsEl.classList.remove('running');
+    statusLineEl.textContent = '一時停止中';
+    stopBtn.textContent = '再開する';
+    releaseWakeLock();
+  }
+
+  function resumeTimer(){
+    startTime = Date.now();
+    isRunning = true;
+    elapsedDigitsEl.classList.add('running');
+    statusLineEl.textContent = `計測中（${(getIntervalSec()/60)}分ごとに音声）`;
+    stopBtn.textContent = 'ストップ';
+    requestWakeLock();
+  }
+
+  function resetTimer(){
+    isRunning = false;
+    startTime = null;
+    accumulatedSec = 0;
+    nextAnnounceSec = null;
+    targetDateTime = null;
+    elapsedDigitsEl.classList.remove('running');
+    statusLineEl.textContent = '停止中';
+    startBtn.disabled = false;
+    stopBtn.disabled = true;
+    stopBtn.textContent = 'ストップ';
+    intervalInput.disabled = false;
+    targetInput.disabled = false;
+    releaseWakeLock();
+    updateElapsedDisplay();
+    updateRemainingDisplay();
+  }
+
+  startBtn.addEventListener('click', startTimer);
+  stopBtn.addEventListener('click', () => {
+    if(isRunning){
+      pauseTimer();
+    }else{
+      resumeTimer();
+    }
+  });
+  resetBtn.addEventListener('click', resetTimer);
+  testVoiceBtn.addEventListener('click', () => {
+    speak(`今は${formatClockHM(new Date())}です。音声テスト中。`);
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible' && isRunning){
+      requestWakeLock();
+    }
+  });
+
+  // ---- ログ機能 ----
+  async function loadLog(){
+    try{
+      const res = await window.storage.get('timelog:entries', false);
+      if(res && res.value){
+        logEntries = JSON.parse(res.value);
+      }
+    }catch(e){
+      logEntries = [];
+    }
+    renderLog();
+  }
+
+  async function saveLog(){
+    try{
+      await window.storage.set('timelog:entries', JSON.stringify(logEntries), false);
+    }catch(e){ /* ignore */ }
+  }
+
+  function renderLog(){
+    logListEl.innerHTML = '';
+    if(logEntries.length === 0){
+      logEmptyEl.style.display = 'block';
+      return;
+    }
+    logEmptyEl.style.display = 'none';
+    // 新しいものを上に表示
+    [...logEntries].reverse().forEach(entry => {
+      const li = document.createElement('li');
+      const labelSpan = document.createElement('span');
+      labelSpan.className = 'log-label';
+      labelSpan.textContent = entry.label || '（無題）';
+      const timeSpan = document.createElement('span');
+      timeSpan.className = 'log-time';
+      timeSpan.textContent = `${entry.clock}／経過${entry.elapsed}`;
+      li.appendChild(labelSpan);
+      li.appendChild(timeSpan);
+      logListEl.appendChild(li);
+    });
+  }
+
+  function addLogEntry(){
+    const label = logLabelInput.value.trim() || '（無題）';
+    const entry = {
+      label,
+      clock: formatClockHM(new Date()),
+      elapsed: formatElapsed(currentElapsedSec())
+    };
+    logEntries.push(entry);
+    logLabelInput.value = '';
+    renderLog();
+    saveLog();
+  }
+
+  logBtn.addEventListener('click', addLogEntry);
+  logLabelInput.addEventListener('keydown', (e) => {
+    if(e.key === 'Enter') addLogEntry();
+  });
+
+  clearLogBtn.addEventListener('click', () => {
+    if(confirm('記録をすべて消去しますか？')){
+      logEntries = [];
+      renderLog();
+      saveLog();
+    }
+  });
+
+  // 初期化
+  if('speechSynthesis' in window){
+    speechSynthesis.onvoiceschanged = () => {};
+  }
+  updateClockDisplay();
+  updateElapsedDisplay();
+  updateRemainingDisplay();
+  loadLog();
+  tickHandle = setInterval(tick, 500);
+</script>
+
+</body>
+</html>
