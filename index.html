@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>移動・作業用タイマー</title>
+<title>発車タイマー</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -109,6 +109,9 @@
     font-family:"Space Mono",monospace;
     font-size:16px;
     outline:none;
+    min-width:100px;
+    flex-shrink:0;
+    text-align:right;
   }
   .controls{
     margin-top:22px;
@@ -522,9 +525,9 @@
   // ---- ログ機能 ----
   async function loadLog(){
     try{
-      const res = await window.storage.get('timelog:entries', false);
-      if(res && res.value){
-        logEntries = JSON.parse(res.value);
+      const raw = localStorage.getItem('timelog_entries');
+      if(raw){
+        logEntries = JSON.parse(raw);
       }
     }catch(e){
       logEntries = [];
@@ -534,7 +537,7 @@
 
   async function saveLog(){
     try{
-      await window.storage.set('timelog:entries', JSON.stringify(logEntries), false);
+      localStorage.setItem('timelog_entries', JSON.stringify(logEntries));
     }catch(e){ /* ignore */ }
   }
 
